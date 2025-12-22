@@ -1,42 +1,104 @@
-No of Trades = 744828
+Execution Summary
 
---- PnL ---
-Trader 2 Sym A Cash -6443829 Pos 64872
-Trader 2 Sym D Cash 5941085 Pos -45363
-Trader 2 Sym E Cash -12822391 Pos 110537
-Trader 2 Sym B Cash -11830185 Pos 109937
-Trader 2 Sym C Cash -13850134 Pos 116307
-Trader 1 Sym A Cash -6660794 Pos 58292
-Trader 1 Sym C Cash -1982252 Pos 26313
-Trader 1 Sym E Cash 7471020 Pos -63513
-Trader 1 Sym B Cash 14200679 Pos -128758
-Trader 1 Sym D Cash -3522713 Pos 25980
-Trader 3 Sym E Cash 5351371 Pos -47024
-Trader 3 Sym C Cash 15832386 Pos -142620
-Trader 3 Sym D Cash -2418372 Pos 19383
-Trader 3 Sym B Cash -2370494 Pos 18821
-Trader 3 Sym A Cash 13104623 Pos -123164
+Total Orders Executed: 1,000,000
 
---- Latency ---
-Ingress
- p50=372300 ns
- p99=847200 ns
- max=1984900 ns
+Total Trades Executed: 744,828
 
-----------------------
-Match
- p50=100 ns
- p99=400 ns
- max=315400 ns
+Profit & Loss (PnL)
+Trader 1
 
-----------------------
-Metrics
- p50=200 ns
- p99=104900 ns
- max=754400 ns
+A — Cash: -6,660,794 | Position: 58,292
 
-----------------------
-Order queue spins (in): 80068245
-Order queue spins (out): 3384
-Trade queue spins (in): 236024
-Trade queue spins (out): 220777161
+B — Cash: 14,200,679 | Position: -128,758
+
+C — Cash: -1,982,252 | Position: 26,313
+
+D — Cash: -3,522,713 | Position: 25,980
+
+E — Cash: 7,471,020 | Position: -63,513
+
+Trader 2
+
+A — Cash: -6,443,829 | Position: 64,872
+
+B — Cash: -11,830,185 | Position: 109,937
+
+C — Cash: -13,850,134 | Position: 116,307
+
+D — Cash: 5,941,085 | Position: -45,363
+
+E — Cash: -12,822,391 | Position: 110,537
+
+Trader 3
+
+A — Cash: 13,104,623 | Position: -123,164
+
+B — Cash: -2,370,494 | Position: 18,821
+
+C — Cash: 15,832,386 | Position: -142,620
+
+D — Cash: -2,418,372 | Position: 19,383
+
+E — Cash: 5,351,371 | Position: -47,024
+
+Latency Metrics (nanoseconds)
+Ingress (Market Replay → Order Queue)
+
+p50: 372,300 ns
+
+p99: 847,200 ns
+
+max: 1,984,900 ns
+
+Matching Engine
+
+p50: 100 ns
+
+p99: 400 ns
+
+max: 315,400 ns
+
+Metrics / PnL Updates
+
+p50: 200 ns
+
+p99: 104,900 ns
+
+max: 754,400 ns
+
+Queue Spin Statistics
+Order Queue
+
+Producer spins (push): 80,068,245
+
+Consumer spins (pop): 3,384
+
+Trade Queue
+
+Producer spins (push): 236,024
+
+Consumer spins (pop): 220,777,161
+  p50:   372,300 ns
+  p99:   847,200 ns
+  max: 1,984,900 ns
+
+Matching Engine
+  p50:       100 ns
+  p99:       400 ns
+  max:   315,400 ns
+
+Metrics / PnL Updates
+  p50:       200 ns
+  p99:   104,900 ns
+  max:   754,400 ns
+
+--- Queue Spin Statistics ---
+
+Order Queue
+  Producer spins (push):  80,068,245
+  Consumer spins (pop):        3,384
+
+Trade Queue
+  Producer spins (push):     236,024
+  Consumer spins (pop): 220,777,161
+
