@@ -76,3 +76,8 @@ Trade Queue
   Producer spins (push):     236,024
   Consumer spins (pop): 220,777,161
 
+Total time for execution : 655499400 ns
+
+
+Throughput for orders : 1525554.40936
+
