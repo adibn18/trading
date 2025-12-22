@@ -66,32 +66,6 @@ p99: 104,900 ns
 
 max: 754,400 ns
 
-Queue Spin Statistics
-Order Queue
-
-Producer spins (push): 80,068,245
-
-Consumer spins (pop): 3,384
-
-Trade Queue
-
-Producer spins (push): 236,024
-
-Consumer spins (pop): 220,777,161
-  p50:   372,300 ns
-  p99:   847,200 ns
-  max: 1,984,900 ns
-
-Matching Engine
-  p50:       100 ns
-  p99:       400 ns
-  max:   315,400 ns
-
-Metrics / PnL Updates
-  p50:       200 ns
-  p99:   104,900 ns
-  max:   754,400 ns
-
 --- Queue Spin Statistics ---
 
 Order Queue
