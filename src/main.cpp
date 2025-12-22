@@ -2,11 +2,18 @@
 #include "order.h"
 #include <thread>
 #include <iostream>
+#include <iomanip>
 
 void market_replay(SPSCQueue<Order>&);
 void pnl_thread(SPSCQueue<Trade>&, LatencyStats&);
 
+static inline uint64_t now_ns() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
 int main() {
+    uint64_t t1 = now_ns();
     constexpr size_t Order_queue_size = 1<<11;
     constexpr size_t Trade_queue_size = 1<<11;
     SPSCQueue<Order> order_q(Order_queue_size);
@@ -32,4 +39,10 @@ int main() {
     std::cout << "Order queue spins (out): "<< order_q.queue_spins_out << "\n";
     std::cout << "Trade queue spins (in): "<< trade_q.queue_spins_in << "\n";
     std::cout << "Trade queue spins (out): "<< trade_q.queue_spins_out << "\n";
+
+    uint64_t t2 = now_ns();
+    std::cout<<"\nTotal time for execution : " << (t2-t1) <<" ns \n";
+
+    double throughput = (1e6/(static_cast<double>(t2-t1)) ) * 1e9;
+    std::cout<<"\nThroughput for orders : " << std::fixed << std::setprecision(5) << throughput <<"\n";
 }
