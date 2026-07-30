@@ -1,4 +1,5 @@
 #include "tcp_server.h"
+#include "client_session.h"
 #include <iostream>
 using boost::asio::ip::tcp;
 
@@ -12,6 +13,8 @@ void TCPServer::start(){
     while(true){
         tcp::socket socket(ioContext);
         acceptor.accept(socket);
-        std::cout<<"Client Connected : " << socket.remote_endpoint() << std::endl;
+        std::cout<<"Client Connected : " << socket.remote_endpoint() << "\n";
+        ClientSession session(std::move(socket));
+        session.start();
     }
 }
