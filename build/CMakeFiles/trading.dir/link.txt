@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/trading.dir/link.d CMakeFiles/trading.dir/src/main.cpp.o CMakeFiles/trading.dir/src/market_replay.cpp.o CMakeFiles/trading.dir/src/matching_engine.cpp.o CMakeFiles/trading.dir/src/pnl_thread.cpp.o CMakeFiles/trading.dir/src/tcp_server.cpp.o -o trading
