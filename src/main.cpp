@@ -1,5 +1,6 @@
 #include "matching_engine.h"
 #include "order.h"
+#include "tcp_server.h"
 #include <thread>
 #include <iostream>
 #include <iomanip>
@@ -13,6 +14,8 @@ static inline uint64_t now_ns() {
 }
 
 int main() {
+    TCPServer  server(8080);
+    server.start();
     uint64_t t1 = now_ns();
     constexpr size_t Order_queue_size = 1<<11;
     constexpr size_t Trade_queue_size = 1<<11;
