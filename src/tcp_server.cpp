@@ -1,6 +1,8 @@
 #include "tcp_server.h"
 #include "client_session.h"
 #include <iostream>
+#include <memory>
+#include <thread>
 using boost::asio::ip::tcp;
 
 TCPServer::TCPServer(unsigned short port,SPSCQueue<Order> &order_q,SPSCQueue<ExecutionReport> &report_q)
@@ -16,7 +18,8 @@ void TCPServer::start(){
         tcp::socket socket(ioContext);
         acceptor.accept(socket);
         std::cout<<"Client Connected : " << socket.remote_endpoint() << "\n";
-        ClientSession session(std::move(socket),order_q_,report_q_);
-        session.start();
+        int trader_id = next_trader_id_++;
+        auto session = std::make_shared<ClientSession>(std::move(socket),trader_id,order_q_,report_q_);
+        std::thread(&ClientSession::start,session).detach();
     }
 }

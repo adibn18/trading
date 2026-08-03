@@ -2,6 +2,7 @@
 #include "order.h"
 #include "tcp_server.h"
 #include "report.h"
+#include "client_session.h"
 #include <thread>
 #include <iostream>
 #include <iomanip>
@@ -30,6 +31,7 @@ int main() {
     //std::thread prod(market_replay, std::ref(order_q));
     std::thread match(&MatchingEngine::run, &engine);
     std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(metrics_lat));
+    
 
     TCPServer  server(8080,order_q,report_q);
     server.start();

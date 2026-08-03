@@ -7,7 +7,7 @@ static inline uint64_t now_ns() {
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_){
+void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPSCQueue<ExecutionReport>& report_q_){
     if (o.side == Side::BUY) {
         auto& book = asks_;
         while (o.qty > 0 && !book.empty()) {
@@ -27,6 +27,34 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_){
             };
             while (!trade_q_.push(t)){
                 ++trade_q_.queue_spins_in;
+            }
+            ExecutionReport r1;
+            r1.trader_id = resting.trader_id;
+            r1.fillqty = traded;
+            r1.price = price;
+            r1.id = resting.id;
+            r1.remqty = resting.qty;
+            r1.symbol = resting.symbol;
+            if(r1.remqty == 0){
+                r1.type = ExecType::FILL;
+            }
+            else {
+                r1.type = ExecType::PARTIAL_FILL;
+            }
+            while (!report_q_.push(r1)){
+                ++report_q_.queue_spins_in;
+            }
+            ExecutionReport r2;
+            if(o.qty > 0) r2.type = ExecType::PARTIAL_FILL;
+            else r2.type = ExecType::FILL;
+            r2.trader_id = o.trader_id;
+            r2.fillqty = traded;
+            r2.price = price;
+            r2.id = o.id;
+            r2.remqty = o.qty - traded;
+            r2.symbol = o.symbol;
+            while (!report_q_.push(r2)){
+                ++report_q_.queue_spins_in;
             }
             if (resting.qty == 0){
                 it->second.pop_front();
@@ -54,6 +82,34 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_){
             };
             while (!trade_q_.push(t)){
                 ++trade_q_.queue_spins_in;
+            }
+            ExecutionReport r1;
+            r1.trader_id = resting.trader_id;
+            r1.fillqty = traded;
+            r1.price = price;
+            r1.id = resting.id;
+            r1.remqty = resting.qty;
+            r1.symbol = resting.symbol;
+            if(r1.remqty == 0){
+                r1.type = ExecType::FILL;
+            }
+            else {
+                r1.type = ExecType::PARTIAL_FILL;
+            }
+            while (!report_q_.push(r1)){
+                ++report_q_.queue_spins_in;
+            }
+            ExecutionReport r2;
+            if(o.qty > 0) r2.type = ExecType::PARTIAL_FILL;
+            else r2.type = ExecType::FILL;
+            r2.trader_id = o.trader_id;
+            r2.fillqty = traded;
+            r2.price = price;
+            r2.id = o.id;
+            r2.remqty = o.qty - traded;
+            r2.symbol = o.symbol;
+            while (!report_q_.push(r2)){
+                ++report_q_.queue_spins_in;
             }
             if (resting.qty == 0){
                 it->second.pop_front();
@@ -87,7 +143,7 @@ void MatchingEngine::run(){
         while(!(report_q_.push(report))){
             ++report_q_.queue_spins_in;
         }
-        books_[o.symbol].match(o,trade_id,trade_q_);
+        books_[o.symbol].match(o,trade_id,trade_q_,report_q_);
         o.t_matched = now_ns();
         if(++process > Warmup){
             match_lat.add(o.t_matched-o.t_emitted);

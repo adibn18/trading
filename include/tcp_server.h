@@ -3,6 +3,7 @@
 #include "spsc_queue.h"
 #include "order.h"
 #include "report.h"
+#include <atomic>
 
 class TCPServer {
     public :
@@ -13,4 +14,5 @@ class TCPServer {
         boost::asio::ip::tcp::acceptor acceptor ;
         SPSCQueue<Order> &order_q_;
         SPSCQueue<ExecutionReport> &report_q_;
+        std::atomic<int> next_trader_id_{0};
 };
