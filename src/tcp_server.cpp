@@ -3,8 +3,10 @@
 #include <iostream>
 using boost::asio::ip::tcp;
 
-TCPServer::TCPServer(unsigned short port)
-    :acceptor(ioContext,tcp::endpoint(tcp::v4(),port)){
+TCPServer::TCPServer(unsigned short port,SPSCQueue<Order> &order_q,SPSCQueue<ExecutionReport> &report_q)
+    :acceptor(ioContext,tcp::endpoint(tcp::v4(),port)),
+    order_q_(order_q),
+    report_q_(report_q){
 }
 
 void TCPServer::start(){
@@ -14,7 +16,7 @@ void TCPServer::start(){
         tcp::socket socket(ioContext);
         acceptor.accept(socket);
         std::cout<<"Client Connected : " << socket.remote_endpoint() << "\n";
-        ClientSession session(std::move(socket));
+        ClientSession session(std::move(socket),order_q_,report_q_);
         session.start();
     }
 }

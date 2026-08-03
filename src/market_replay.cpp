@@ -20,7 +20,7 @@ void market_replay(SPSCQueue<Order>& q) {
     for (uint64_t i=0;i<1000000;i++) {
         Order o{
             i, trader(rng),
-            Symbol(sym(rng)),
+            std::to_string(sym(rng)+'A'),
             side(rng)?Side::BUY:Side::SELL,
             type(rng)?OrderType::LIMIT:OrderType::MARKET,
             price(rng), qty(rng),

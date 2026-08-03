@@ -16,6 +16,8 @@ add_executable(trading
     src/pnl_thread.cpp
     src/tcp_server.cpp
     src/client_session.cpp
+    src/protocol.cpp
+    src/message.cpp
 )
 
 target_link_libraries(trading

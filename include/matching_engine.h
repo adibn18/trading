@@ -3,17 +3,19 @@
 #include "spsc_queue.h"
 #include "order_book.h"
 #include "latency.h"
+#include "report.h"
 #include <unordered_map>
 
 class MatchingEngine {
 public:
-    MatchingEngine(SPSCQueue<Order>& oq,SPSCQueue<Trade>& tq): order_q_(oq), trade_q_(tq) {}
+    MatchingEngine(SPSCQueue<Order>& oq,SPSCQueue<Trade>& tq,SPSCQueue<ExecutionReport>& rq): order_q_(oq), trade_q_(tq),report_q_(rq) {}
     void run();
     LatencyStats ingress_lat;
     LatencyStats match_lat;
     SPSCQueue<Trade>& trade_q_;
+    SPSCQueue<ExecutionReport>& report_q_;
 private:
     SPSCQueue<Order>& order_q_;
-    std::unordered_map<Symbol, OrderBook> books_;
+    std::unordered_map<std::string, OrderBook> books_;
 };
 

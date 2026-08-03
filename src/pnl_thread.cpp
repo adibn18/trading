@@ -16,7 +16,7 @@ struct PnL {
 };
 
 void pnl_thread(SPSCQueue<Trade>& tq,LatencyStats& metrics_lat) {
-    std::unordered_map<int,std::unordered_map<Symbol, PnL>> pnl;
+    std::unordered_map<int,std::unordered_map<std::string, PnL>> pnl;
     Trade t;
     uint64_t process = 0;
     constexpr uint64_t Warmup = 1000;
@@ -42,7 +42,7 @@ void pnl_thread(SPSCQueue<Trade>& tq,LatencyStats& metrics_lat) {
     for (auto& [tr, mp] : pnl)
         for (auto& [sym, p] : mp)
             std::cout << "Trader " << tr
-                      << " Sym " << static_cast<char>(static_cast<int>(sym)+'A')
+                      << " Sym " << sym
                       << " Cash " << p.cash
                       << " Pos " << p.pos << "\n";
 }

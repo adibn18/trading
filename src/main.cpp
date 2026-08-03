@@ -1,6 +1,7 @@
 #include "matching_engine.h"
 #include "order.h"
 #include "tcp_server.h"
+#include "report.h"
 #include <thread>
 #include <iostream>
 #include <iomanip>
@@ -14,22 +15,26 @@ static inline uint64_t now_ns() {
 }
 
 int main() {
-    TCPServer  server(8080);
-    server.start();
-    uint64_t t1 = now_ns();
     constexpr size_t Order_queue_size = 1<<11;
     constexpr size_t Trade_queue_size = 1<<11;
+    constexpr size_t Report_queue_size = 1<<11;
     SPSCQueue<Order> order_q(Order_queue_size);
     SPSCQueue<Trade> trade_q(Trade_queue_size);
+    SPSCQueue<ExecutionReport> report_q(Report_queue_size);
+    uint64_t t1 = now_ns();
+    
 
-    MatchingEngine engine(order_q, trade_q);
+    MatchingEngine engine(order_q, trade_q,report_q);
     LatencyStats metrics_lat;
 
-    std::thread prod(market_replay, std::ref(order_q));
+    //std::thread prod(market_replay, std::ref(order_q));
     std::thread match(&MatchingEngine::run, &engine);
     std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(metrics_lat));
 
-    prod.join();
+    TCPServer  server(8080,order_q,report_q);
+    server.start();
+
+    //prod.join();
     match.join();
     pnl.join();
 

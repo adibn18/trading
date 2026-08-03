@@ -1,15 +1,14 @@
 #pragma once
 
 #include <cstdint>
-
+#include <string>
 enum class Side { BUY, SELL };
 enum class OrderType { LIMIT , MARKET, SHUTDOWN };
-enum class Symbol { A , B , C , D , E };
 
 struct Order {
     uint64_t id;
     int trader_id;
-    Symbol symbol;
+    std::string symbol;
     Side side;
     OrderType type;
     int price;
@@ -23,7 +22,7 @@ struct Trade {
     uint64_t trade_id;
     int trade_buyer_id;
     int trade_seller_id;
-    Symbol symbol;
+    std::string symbol;
     int price;
     int qty;
     uint64_t t_created;

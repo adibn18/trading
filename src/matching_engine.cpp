@@ -1,4 +1,5 @@
 #include <matching_engine.h>
+#include <report.h>
 #include <chrono>
 
 static inline uint64_t now_ns() {
@@ -75,6 +76,17 @@ void MatchingEngine::run(){
         }
         if (o.type == OrderType::SHUTDOWN) break;
         o.t_emitted = now_ns();
+        ExecutionReport report;
+        report.type = ExecType::ACK;
+        report.id = o.id;
+        report.symbol = o.symbol;
+        report.price = o.price;
+        report.fillqty = 0;
+        report.remqty = o.qty;
+        report.trader_id = o.trader_id;
+        while(!(report_q_.push(report))){
+            ++report_q_.queue_spins_in;
+        }
         books_[o.symbol].match(o,trade_id,trade_q_);
         o.t_matched = now_ns();
         if(++process > Warmup){
