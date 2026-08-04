@@ -11,13 +11,13 @@ find_package(Threads REQUIRED)
 
 add_executable(trading
     src/main.cpp
-    src/market_replay.cpp
     src/matching_engine.cpp
     src/pnl_thread.cpp
     src/tcp_server.cpp
     src/client_session.cpp
     src/protocol.cpp
     src/message.cpp
+
 )
 
 target_link_libraries(trading

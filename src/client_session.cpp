@@ -2,14 +2,14 @@
 #include <iostream>
 #include <thread>
 #include "message.h"
-#include "protocol.h"
 #include <utility>
 
-ClientSession::ClientSession(boost::asio::ip::tcp::socket socket,int trader_id,SPSCQueue<Order> &order_q,SPSCQueue<ExecutionReport> &report_q)
+ClientSession::ClientSession(boost::asio::ip::tcp::socket socket,int trader_id,SPSCQueue<Order> &order_q,ReportDispatcher &dispatcher)
     : socket_(std::move(socket)),
     order_q_(order_q),
-    report_q_(report_q),
-    trader_id_(trader_id) {
+    dispatcher_(dispatcher),
+    trader_id_(trader_id),
+    report_q_(1024) {
 }
 
 void ClientSession::start() {
@@ -34,10 +34,13 @@ void ClientSession::readerLoop(){
         Message msg = Protocol::parse(data);
         Order order = MessageConverter::toOrder(msg);
         order.trader_id = trader_id_;
+        if(!registered_){
+            dispatcher_.RegisterClient(trader_id_,&report_q_);
+            registered_ = true;
+        }
         while (!order_q_.push(order)) {
             ++order_q_.queue_spins_in;
         }
-        std::cout<<"Order pushed"<<"\n";
     }
 }
 

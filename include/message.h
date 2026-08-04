@@ -22,3 +22,8 @@ class MessageConverter{
 public:
     static Order toOrder(const Message &msg);
 };
+
+class Protocol{
+    public:
+        static Message parse(const std::string & data);
+};

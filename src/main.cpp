@@ -24,21 +24,21 @@ int main() {
     SPSCQueue<ExecutionReport> report_q(Report_queue_size);
     uint64_t t1 = now_ns();
     
-
+    ReportDispatcher dispatcher(report_q);
     MatchingEngine engine(order_q, trade_q,report_q);
     LatencyStats metrics_lat;
 
-    //std::thread prod(market_replay, std::ref(order_q));
     std::thread match(&MatchingEngine::run, &engine);
     std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(metrics_lat));
+    std::thread dispatcherthread(&ReportDispatcher::run,&dispatcher);
     
 
-    TCPServer  server(8080,order_q,report_q);
+    TCPServer server(8080,order_q,dispatcher);
     server.start();
 
-    //prod.join();
     match.join();
     pnl.join();
+    dispatcherthread.join();
 
     std::cout << "\n--- Latency ---\n";
     engine.ingress_lat.report("Ingress");
