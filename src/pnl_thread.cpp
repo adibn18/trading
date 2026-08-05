@@ -1,21 +1,29 @@
 #include "spsc_queue.h"
 #include "order.h"
 #include "latency.h"
+#include "report.h"
+#include "rdtsc.h"
 #include <unordered_map>
 #include <iostream>
-#include <chrono>
-
-static inline uint64_t now_ns() {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::steady_clock::now().time_since_epoch()).count();
-}
 
 struct PnL {
     int64_t cash = 0;
     int64_t pos = 0;
 };
 
-void pnl_thread(SPSCQueue<Trade>& tq,LatencyStats& metrics_lat) {
+static void push_pnl_report(SPSCQueue<ExecutionReport>& q, int trader_id,const std::string& symbol, int64_t cash, int64_t pos) {
+    ExecutionReport r;
+    r.type = ExecType::PNL_UPDATE;
+    r.trader_id = trader_id;
+    r.symbol = symbol;
+    r.cash = cash;
+    r.pos = pos;
+    while (!q.push(r)) {
+        ++q.queue_spins_in;
+    }
+}
+
+void pnl_thread(SPSCQueue<Trade>& tq, SPSCQueue<ExecutionReport>& report_q,LatencyStats& metrics_lat) {
     std::unordered_map<int,std::unordered_map<std::string, PnL>> pnl;
     Trade t;
     uint64_t process = 0;
@@ -26,15 +34,20 @@ void pnl_thread(SPSCQueue<Trade>& tq,LatencyStats& metrics_lat) {
             continue;
         }
         if (t.trade_buyer_id == -1 || t.trade_seller_id == -1) break;
-        auto& p1 = pnl[t.trade_buyer_id][t.symbol];
-        auto& p2 = pnl[t.trade_seller_id][t.symbol];
-        p1.cash -= int64_t(t.price) * t.qty;
-        p1.pos += t.qty;
-        p2.cash += int64_t(t.price) * t.qty;
-        p2.pos -= t.qty;
-        t.t_emitted = now_ns();
+
+        auto& buyer = pnl[t.trade_buyer_id][t.symbol];
+        auto& seller = pnl[t.trade_seller_id][t.symbol];
+        buyer.cash -= int64_t(t.price) * t.qty;
+        buyer.pos += t.qty;
+        seller.cash += int64_t(t.price) * t.qty;
+        seller.pos -= t.qty;
+
+        push_pnl_report(report_q, t.trade_buyer_id, t.symbol, buyer.cash, buyer.pos);
+        push_pnl_report(report_q, t.trade_seller_id, t.symbol, seller.cash, seller.pos);
+
+        const uint64_t done = now_tsc();
         if(++process > Warmup){
-            metrics_lat.add(t.t_emitted - t.t_created);
+            metrics_lat.add(done - t.t_created);
         }
     }
 
@@ -46,5 +59,3 @@ void pnl_thread(SPSCQueue<Trade>& tq,LatencyStats& metrics_lat) {
                       << " Cash " << p.cash
                       << " Pos " << p.pos << "\n";
 }
-
-

@@ -62,7 +62,16 @@ void ClientSession::writerLoop(){
             case ExecType::PARTIAL_FILL :
                 response = "PARTIAL_FILL," + std::to_string(r.id)+"," + std::to_string(r.fillqty)+"," + std::to_string(r.price) + "\n";
                 break;
-            default : 
+            case ExecType::CANCELLED :
+                response = "CANCELLED," + std::to_string(r.id) + "\n";
+                break;
+            case ExecType::REJECT :
+                response = "REJECT," + std::to_string(r.id) + "\n";
+                break;
+            case ExecType::MODIFIED :
+                response = "MODIFIED," + std::to_string(r.id) + "," + std::to_string(r.remqty) + "," + std::to_string(r.price) + "\n";
+                break;
+            default :
                 continue;
         }
         boost::asio::write(socket_, boost::asio::buffer(response), erc);

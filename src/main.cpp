@@ -3,12 +3,13 @@
 #include "tcp_server.h"
 #include "report.h"
 #include "client_session.h"
+#include "metrics.h"
 #include <thread>
 #include <iostream>
 #include <iomanip>
 
 void market_replay(SPSCQueue<Order>&);
-void pnl_thread(SPSCQueue<Trade>&, LatencyStats&);
+void pnl_thread(SPSCQueue<Trade>&, SPSCQueue<ExecutionReport>& , LatencyStats&);
 
 static inline uint64_t now_ns() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -22,14 +23,13 @@ int main() {
     SPSCQueue<Order> order_q(Order_queue_size);
     SPSCQueue<Trade> trade_q(Trade_queue_size);
     SPSCQueue<ExecutionReport> report_q(Report_queue_size);
-    uint64_t t1 = now_ns();
-    
-    ReportDispatcher dispatcher(report_q);
+    PerformanceMetrics metrics_;
+    ReportDispatcher dispatcher(report_q,metrics_);
     MatchingEngine engine(order_q, trade_q,report_q);
     LatencyStats metrics_lat;
-
+    uint64_t t1 = now_ns();
     std::thread match(&MatchingEngine::run, &engine);
-    std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(metrics_lat));
+    std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(report_q),std::ref(metrics_lat));
     std::thread dispatcherthread(&ReportDispatcher::run,&dispatcher);
     
 
@@ -40,19 +40,19 @@ int main() {
     pnl.join();
     dispatcherthread.join();
 
-    std::cout << "\n--- Latency ---\n";
-    engine.ingress_lat.report("Ingress");
-    engine.match_lat.report("Match");
-    metrics_lat.report("Metrics");
+    // std::cout << "\n--- Latency ---\n";
+    // engine.ingress_lat.report("Ingress");
+    // engine.match_lat.report("Match");
+    // metrics_lat.report("Metrics");
 
-    std::cout << "Order queue spins (in): "<< order_q.queue_spins_in << "\n";
-    std::cout << "Order queue spins (out): "<< order_q.queue_spins_out << "\n";
-    std::cout << "Trade queue spins (in): "<< trade_q.queue_spins_in << "\n";
-    std::cout << "Trade queue spins (out): "<< trade_q.queue_spins_out << "\n";
+    // std::cout << "Order queue spins (in): "<< order_q.queue_spins_in << "\n";
+    // std::cout << "Order queue spins (out): "<< order_q.queue_spins_out << "\n";
+    // std::cout << "Trade queue spins (in): "<< trade_q.queue_spins_in << "\n";
+    // std::cout << "Trade queue spins (out): "<< trade_q.queue_spins_out << "\n";
 
-    uint64_t t2 = now_ns();
-    std::cout<<"\nTotal time for execution : " << (t2-t1) <<" ns \n";
+    // uint64_t t2 = now_ns();
+    // std::cout<<"\nTotal time for execution : " << (t2-t1) <<" ns \n";
 
-    double throughput = (1e6/(static_cast<double>(t2-t1)) ) * 1e9;
-    std::cout<<"\nThroughput for orders : " << std::fixed << std::setprecision(5) << throughput <<"\n";
+    // double throughput = (1e6/(static_cast<double>(t2-t1)) ) * 1e9;
+    // std::cout<<"\nThroughput for orders : " << std::fixed << std::setprecision(5) << throughput <<"\n";
 }

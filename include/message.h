@@ -3,13 +3,13 @@
 #include "order.h"
 
 enum class MessageType{
-    NEW_ORDER,
-    CANCEL_ORDER,
-    UNKNOWN
+    NEW,
+    CANCEL,
+    MODIFY
 };
 
 struct Message{
-    MessageType type = MessageType::UNKNOWN;
+    MessageType type = MessageType::NEW;
     uint64_t orderId = 0;
     Side side = Side::BUY;
     std::string symbol;

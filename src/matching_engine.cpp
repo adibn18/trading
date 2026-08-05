@@ -1,11 +1,7 @@
 #include <matching_engine.h>
 #include <report.h>
-#include <chrono>
-
-static inline uint64_t now_ns() {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::steady_clock::now().time_since_epoch()).count();
-}
+#include <iostream>
+#include <rdtsc.h>
 
 void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPSCQueue<ExecutionReport>& report_q_){
     if (o.side == Side::BUY) {
@@ -23,7 +19,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPS
                 o.trader_id,resting.trader_id,
                 o.symbol,price,
                 traded,
-                now_ns(),0
+                now_tsc(),0
             };
             while (!trade_q_.push(t)){
                 ++trade_q_.queue_spins_in;
@@ -61,7 +57,16 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPS
                 if (it->second.empty()) book.erase(it);
             }
         }
-        if (o.qty > 0 && o.type == OrderType::LIMIT) bids_[o.price].push_back(o);
+        if (o.qty > 0 && o.type == OrderType::LIMIT){
+            bids_[o.price].push_back(o);
+            auto it = std::prev(bids_[o.price].end());
+            order_index_[o.id] = {
+                Side::BUY,
+                o.symbol,
+                o.price,
+                it
+            };
+        }
     }
     else {
         auto& book = bids_;
@@ -78,7 +83,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPS
                 resting.trader_id,o.trader_id,
                 o.symbol,price,
                 traded,
-                now_ns(),0
+                now_tsc(),0
             };
             while (!trade_q_.push(t)){
                 ++trade_q_.queue_spins_in;
@@ -116,8 +121,95 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPS
                 if (it->second.empty()) book.erase(it);
             }
         }
-        if (o.qty > 0 && o.type == OrderType::LIMIT) asks_[o.price].push_back(o);
+        if (o.qty > 0 && o.type == OrderType::LIMIT){
+            asks_[o.price].push_back(o);
+            auto it = std::prev(asks_[o.price].end());
+            order_index_[o.id] = {
+                Side::SELL,
+                o.symbol,
+                o.price,
+                it
+            };
+        }
     }
+}
+
+bool OrderBook::cancel(uint64_t id,SPSCQueue<ExecutionReport>& report_q_){
+    auto idx = order_index_.find(id);
+    if(idx == order_index_.end()) return false;
+    auto &loc = idx->second;
+    const Order cancelled = *loc.order_it;
+    if(loc.side == Side::BUY){
+        auto book_it = bids_.find(loc.price);
+        book_it->second.erase(loc.order_it);
+        if(book_it->second.empty()) bids_.erase(book_it);
+        order_index_.erase(idx);
+    }
+    else{
+        auto book_it = asks_.find(loc.price);
+        book_it->second.erase(loc.order_it);
+        if(book_it->second.empty()) asks_.erase(book_it);
+        order_index_.erase(idx);
+    }
+    ExecutionReport r;
+    r.type = ExecType::CANCELLED;
+    r.id = id;
+    r.symbol = cancelled.symbol;
+    r.trader_id = cancelled.trader_id;
+    r.remqty = cancelled.qty;
+    while(!report_q_.push(r)){
+        ++report_q_.queue_spins_in;
+    }
+    return true;
+}
+
+bool OrderBook::modify(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPSCQueue<ExecutionReport>& report_q_){
+    auto idx = order_index_.find(o.id);
+    if(idx == order_index_.end()) return false;
+    if(o.qty <= 0) return false;
+
+    auto &loc = idx->second;
+    Order& resting = *loc.order_it;
+    const int old_price = resting.price;
+
+    auto push_modified = [&](const Order& updated){
+        ExecutionReport r;
+        r.type = ExecType::MODIFIED;
+        r.id = updated.id;
+        r.symbol = updated.symbol;
+        r.trader_id = updated.trader_id;
+        r.price = updated.price;
+        r.remqty = updated.qty;
+        while(!report_q_.push(r)){
+            ++report_q_.queue_spins_in;
+        }
+    };
+
+    if(o.price == old_price){
+        resting.qty = o.qty;
+        push_modified(resting);
+        return true;
+    }
+
+    Order updated = resting;
+    updated.price = o.price;
+    updated.qty = o.qty;
+
+    if(loc.side == Side::BUY){
+        auto book_it = bids_.find(loc.price);
+        book_it->second.erase(loc.order_it);
+        if(book_it->second.empty()) bids_.erase(book_it);
+    }
+    else{
+        auto book_it = asks_.find(loc.price);
+        book_it->second.erase(loc.order_it);
+        if(book_it->second.empty()) asks_.erase(book_it);
+    }
+    order_index_.erase(idx);
+
+    match(updated,trade_id,trade_q_,report_q_);
+    push_modified(updated);
+    return true;
 }
 
 void MatchingEngine::run(){
@@ -131,20 +223,43 @@ void MatchingEngine::run(){
             continue;
         }
         if (o.type == OrderType::SHUTDOWN) break;
-        o.t_emitted = now_ns();
+        o.t_emitted = now_tsc();
         ExecutionReport report;
         report.type = ExecType::ACK;
         report.id = o.id;
         report.symbol = o.symbol;
-        report.price = o.price;
-        report.fillqty = 0;
-        report.remqty = o.qty;
         report.trader_id = o.trader_id;
         while(!(report_q_.push(report))){
             ++report_q_.queue_spins_in;
         }
+        if(o.rtype == RequestType::CANCEL){
+            if(!books_[o.symbol].cancel(o.id,report_q_)){
+                ExecutionReport reject;
+                reject.type = ExecType::REJECT;
+                reject.id = o.id;
+                reject.symbol = o.symbol;
+                reject.trader_id = o.trader_id;
+                while(!report_q_.push(reject)){
+                    ++report_q_.queue_spins_in;
+                }
+            }
+            continue;
+        }
+        if(o.rtype == RequestType::MODIFY){
+            if(!books_[o.symbol].modify(o,trade_id,trade_q_,report_q_)){
+                ExecutionReport reject;
+                reject.type = ExecType::REJECT;
+                reject.id = o.id;
+                reject.symbol = o.symbol;
+                reject.trader_id = o.trader_id;
+                while(!report_q_.push(reject)){
+                    ++report_q_.queue_spins_in;
+                }
+            }
+            continue;
+        }
         books_[o.symbol].match(o,trade_id,trade_q_,report_q_);
-        o.t_matched = now_ns();
+        o.t_matched = now_tsc();
         if(++process > Warmup){
             match_lat.add(o.t_matched-o.t_emitted);
             ingress_lat.add(o.t_emitted-o.t_created);

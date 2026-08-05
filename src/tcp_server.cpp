@@ -25,28 +25,42 @@ void TCPServer::start(){
     }
 }
 
-ReportDispatcher::ReportDispatcher(SPSCQueue<ExecutionReport> &report_q) : report_q_(report_q){
+ReportDispatcher::ReportDispatcher(SPSCQueue<ExecutionReport> &report_q,PerformanceMetrics &metrics)
+    : report_q_(report_q),
+      metrics_(metrics) {}
 
+bool ReportDispatcher::pop_report(ExecutionReport& r) {
+    if (report_q_.pop(r)) return true;
+    return report_q_.pop(r);
+}
+
+void ReportDispatcher::dispatch(ExecutionReport& r) {
+    metrics_.record(r.type);
+    r.stats = metrics_.snapshot(report_q_.queue_spins_in, report_q_.queue_spins_out);
+
+    SPSCQueue<ExecutionReport>* queue = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(client_mutex_);
+        auto it = clients_.find(r.trader_id);
+        if(it != clients_.end()) queue = it->second;
+    }
+    if(!queue) return;
+
+    while(!queue->push(r)){
+        ++metrics_.client_push_spins;
+        std::this_thread::yield();
+    }
 }
 
 void ReportDispatcher::run(){
     while (true){
         ExecutionReport r;
-        while (!report_q_.pop(r)){
+        while (!pop_report(r)){
+            ++report_q_.queue_spins_out;
             std::this_thread::yield();
         }
-        SPSCQueue<ExecutionReport>* queue = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(client_mutex_);
-            auto it = clients_.find(r.trader_id);
-            if(it != clients_.end()) queue = it->second;
-        }
-        if(queue){
-            while(!queue->push(r)){
-                std::this_thread::yield();
-            }
-        }
-    } 
+        dispatch(r);
+    }
 }
 
 void ReportDispatcher::RegisterClient(int trader_id,SPSCQueue<ExecutionReport> *queue){
