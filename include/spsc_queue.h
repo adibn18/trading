@@ -32,7 +32,7 @@ public:
     uint64_t queue_spins_out = 0;
 private:
     size_t increment(size_t idx) const noexcept {
-        return (idx + 1) % capacity_;
+        return (idx + 1) & (capacity_ - 1);
     }
     size_t capacity_;
     std::unique_ptr<T[]> buffer_;
