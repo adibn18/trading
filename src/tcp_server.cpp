@@ -6,7 +6,7 @@
 #include <thread>
 using boost::asio::ip::tcp;
 
-TCPServer::TCPServer(unsigned short port,SPSCQueue<Order> &order_q,ReportDispatcher &dispatcher)
+TCPServer::TCPServer(unsigned short port,MPSCQueue<Order> &order_q,ReportDispatcher &dispatcher)
     :acceptor(ioContext,tcp::endpoint(tcp::v4(),port)),
     order_q_(order_q),
     dispatcher_(dispatcher){
@@ -15,9 +15,16 @@ TCPServer::TCPServer(unsigned short port,SPSCQueue<Order> &order_q,ReportDispatc
 void TCPServer::start(){
     std::cout<<"Trading Server Strated\n";
     std::cout<<"Listening on port 8080..\n";
-    while(true){
+    boost::system::error_code ec;
+    acceptor.non_blocking(true,ec);
+    while(running_){
         tcp::socket socket(ioContext);
-        acceptor.accept(socket);
+        acceptor.accept(socket,ec);
+        if(!running_) break;
+        if(ec == boost::asio::error::would_block || ec == boost::asio::error::try_again){
+            std::this_thread::yield();
+            continue;
+        }
         std::cout<<"Client Connected : " << socket.remote_endpoint() << "\n";
         int trader_id = next_trader_id_++;
         auto session = std::make_shared<ClientSession>(std::move(socket),trader_id,order_q_,dispatcher_);
@@ -25,7 +32,13 @@ void TCPServer::start(){
     }
 }
 
-ReportDispatcher::ReportDispatcher(SPSCQueue<ExecutionReport> &report_q,PerformanceMetrics &metrics)
+void TCPServer::stop(){
+    running_ = false;
+    boost::system::error_code erc;
+    acceptor.close(erc);
+}
+
+ReportDispatcher::ReportDispatcher(MPSCQueue<ExecutionReport> &report_q,PerformanceMetrics &metrics)
     : report_q_(report_q),
       metrics_(metrics) {}
 
@@ -58,6 +71,9 @@ void ReportDispatcher::run(){
         while (!pop_report(r)){
             ++report_q_.queue_spins_out;
             std::this_thread::yield();
+        }
+        if (r.trader_id == -1){
+            break;
         }
         dispatch(r);
     }

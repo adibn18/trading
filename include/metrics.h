@@ -14,7 +14,6 @@ public:
     std::atomic<uint64_t> cancelled{0};
     std::atomic<uint64_t> rejects{0};
     std::atomic<uint64_t> modified{0};
-    std::atomic<uint64_t> pnl_updates{0};
     std::atomic<uint64_t> round_turns{0};
     std::atomic<uint64_t> client_push_spins{0};
 
@@ -26,7 +25,6 @@ public:
             case ExecType::CANCELLED: ++cancelled; break;
             case ExecType::REJECT: ++rejects; break;
             case ExecType::MODIFIED: ++modified; break;
-            case ExecType::PNL_UPDATE: ++pnl_updates; break;
             default: break;
         }
     }
@@ -39,7 +37,6 @@ public:
         s.cancelled = cancelled.load(std::memory_order_relaxed);
         s.rejects = rejects.load(std::memory_order_relaxed);
         s.modified = modified.load(std::memory_order_relaxed);
-        s.pnl_updates = pnl_updates.load(std::memory_order_relaxed);
         s.round_turns = round_turns.load(std::memory_order_relaxed);
         s.report_q_spins_in = report_q_spins_in;
         s.report_q_spins_out = report_q_spins_out;
@@ -60,7 +57,6 @@ public:
         std::cout << " CANCELLED:      " << cancelled.load() << "\n";
         std::cout << " REJECTs:        " << rejects.load() << "\n";
         std::cout << " MODIFIED:       " << modified.load() << "\n";
-        std::cout << " PNL updates:    " << pnl_updates.load() << "\n";
         std::cout << " Round turns:    " << rts << "\n";
         std::cout << std::fixed << std::setprecision(2);
         std::cout << " RT throughput:  " << rt_throughput << " RT/s\n";

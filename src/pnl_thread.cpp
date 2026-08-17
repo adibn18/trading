@@ -1,4 +1,5 @@
 #include "spsc_queue.h"
+#include "mpsc_queue.h"
 #include "order.h"
 #include "latency.h"
 #include "report.h"
@@ -11,29 +12,19 @@ struct PnL {
     int64_t pos = 0;
 };
 
-static void push_pnl_report(SPSCQueue<ExecutionReport>& q, int trader_id,const std::string& symbol, int64_t cash, int64_t pos) {
-    ExecutionReport r;
-    r.type = ExecType::PNL_UPDATE;
-    r.trader_id = trader_id;
-    r.symbol = symbol;
-    r.cash = cash;
-    r.pos = pos;
-    while (!q.push(r)) {
-        ++q.queue_spins_in;
-    }
-}
-
-void pnl_thread(SPSCQueue<Trade>& tq, SPSCQueue<ExecutionReport>& report_q,LatencyStats& metrics_lat) {
+void pnl_thread(SPSCQueue<Trade>& tq, MPSCQueue<ExecutionReport>& report_q,LatencyStats& metrics_lat) {
     std::unordered_map<int,std::unordered_map<std::string, PnL>> pnl;
     Trade t;
     uint64_t process = 0;
-    constexpr uint64_t Warmup = 1000;
+    constexpr uint64_t Warmup = 0;
     while (true) {
         if (!tq.pop(t)){
             ++tq.queue_spins_out;
             continue;
         }
-        if (t.trade_buyer_id == -1 || t.trade_seller_id == -1) break;
+        if (t.trade_buyer_id == -1 || t.trade_seller_id == -1){
+            break;
+        }
 
         auto& buyer = pnl[t.trade_buyer_id][t.symbol];
         auto& seller = pnl[t.trade_seller_id][t.symbol];
@@ -42,9 +33,6 @@ void pnl_thread(SPSCQueue<Trade>& tq, SPSCQueue<ExecutionReport>& report_q,Laten
         seller.cash += int64_t(t.price) * t.qty;
         seller.pos -= t.qty;
 
-        push_pnl_report(report_q, t.trade_buyer_id, t.symbol, buyer.cash, buyer.pos);
-        push_pnl_report(report_q, t.trade_seller_id, t.symbol, seller.cash, seller.pos);
-
         const uint64_t done = now_tsc();
         if(++process > Warmup){
             metrics_lat.add(done - t.t_created);
@@ -52,10 +40,12 @@ void pnl_thread(SPSCQueue<Trade>& tq, SPSCQueue<ExecutionReport>& report_q,Laten
     }
 
     std::cout << "\n--- PnL ---\n";
-    for (auto& [tr, mp] : pnl)
-        for (auto& [sym, p] : mp)
+    for (auto& [tr, mp] : pnl){
+        for (auto& [sym, p] : mp){
             std::cout << "Trader " << tr
                       << " Sym " << sym
                       << " Cash " << p.cash
                       << " Pos " << p.pos << "\n";
+        }
+    }
 }

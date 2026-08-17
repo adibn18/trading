@@ -4,7 +4,7 @@
 #include "message.h"
 #include <utility>
 
-ClientSession::ClientSession(boost::asio::ip::tcp::socket socket,int trader_id,SPSCQueue<Order> &order_q,ReportDispatcher &dispatcher)
+ClientSession::ClientSession(boost::asio::ip::tcp::socket socket,int trader_id,MPSCQueue<Order> &order_q,ReportDispatcher &dispatcher)
     : socket_(std::move(socket)),
     order_q_(order_q),
     dispatcher_(dispatcher),
@@ -54,23 +54,25 @@ void ClientSession::writerLoop(){
         std::string response;
         switch (r.type){
             case ExecType::ACK :
-                response = "ACK," + std::to_string(r.id) + "\n";
+                response = "ACK," + std::to_string(r.id) + "," +r.symbol+ "\n";
                 break;
             case ExecType::FILL :
-                response = "FILL," + std::to_string(r.id) +"," + std::to_string(r.fillqty)+"," + std::to_string(r.price) + "\n";
+                response = "FILL," + std::to_string(r.id)+ "," +r.symbol +"," + std::to_string(r.fillqty)+"," + std::to_string(r.price) + "\n";
                 break;
             case ExecType::PARTIAL_FILL :
-                response = "PARTIAL_FILL," + std::to_string(r.id)+"," + std::to_string(r.fillqty)+"," + std::to_string(r.price) + "\n";
+                response = "PARTIAL_FILL," + std::to_string(r.id)+ "," +r.symbol +"," + std::to_string(r.fillqty)+"," + std::to_string(r.price) + "\n";
                 break;
             case ExecType::CANCELLED :
-                response = "CANCELLED," + std::to_string(r.id) + "\n";
+                response = "CANCELLED," + std::to_string(r.id)+ "," +r.symbol  + "\n";
                 break;
             case ExecType::REJECT :
-                response = "REJECT," + std::to_string(r.id) + "\n";
+                response = "REJECT," + std::to_string(r.id)+ "," +r.symbol  + "\n";
                 break;
             case ExecType::MODIFIED :
-                response = "MODIFIED," + std::to_string(r.id) + "," + std::to_string(r.remqty) + "," + std::to_string(r.price) + "\n";
+                response = "MODIFIED," + std::to_string(r.id)+ "," +r.symbol  + "," + std::to_string(r.remqty) + "," + std::to_string(r.price) + "\n";
                 break;
+            case ExecType::PNL_UPDATE :
+            response = "PNL," + (r.symbol) + "," + std::to_string(r.cash) + "," + std::to_string(r.pos) + "\n";
             default :
                 continue;
         }

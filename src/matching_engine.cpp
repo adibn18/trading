@@ -3,7 +3,7 @@
 #include <iostream>
 #include <rdtsc.h>
 
-void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPSCQueue<ExecutionReport>& report_q_){
+void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPSCQueue<ExecutionReport>& report_q_){
     if (o.side == Side::BUY) {
         auto& book = asks_;
         while (o.qty > 0 && !book.empty()) {
@@ -134,7 +134,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPS
     }
 }
 
-bool OrderBook::cancel(uint64_t id,SPSCQueue<ExecutionReport>& report_q_){
+bool OrderBook::cancel(uint64_t id,MPSCQueue<ExecutionReport>& report_q_){
     auto idx = order_index_.find(id);
     if(idx == order_index_.end()) return false;
     auto &loc = idx->second;
@@ -163,7 +163,7 @@ bool OrderBook::cancel(uint64_t id,SPSCQueue<ExecutionReport>& report_q_){
     return true;
 }
 
-bool OrderBook::modify(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,SPSCQueue<ExecutionReport>& report_q_){
+bool OrderBook::modify(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPSCQueue<ExecutionReport>& report_q_){
     auto idx = order_index_.find(o.id);
     if(idx == order_index_.end()) return false;
     if(o.qty <= 0) return false;
@@ -216,7 +216,7 @@ void MatchingEngine::run(){
     Order o;
     uint64_t trade_id = 0;
     uint64_t process = 0;
-    constexpr uint64_t Warmup = 1000;
+    constexpr uint64_t Warmup = 0;
     while (true) {
         if (!order_q_.pop(o)){
             ++order_q_.queue_spins_out;
@@ -270,5 +270,10 @@ void MatchingEngine::run(){
     shutdown.trade_buyer_id = -1;
     while (!trade_q_.push(shutdown)){
         ++trade_q_.queue_spins_in;
+    }
+    ExecutionReport shutdown_r{};
+    shutdown_r.trader_id = -1;
+    while (!report_q_.push(shutdown_r)){
+        ++report_q_.queue_spins_in;
     }
 }
