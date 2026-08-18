@@ -5,7 +5,8 @@
 enum class MessageType{
     NEW,
     CANCEL,
-    MODIFY
+    MODIFY,
+    PNL
 };
 
 struct Message{
