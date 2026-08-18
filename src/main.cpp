@@ -5,12 +5,13 @@
 #include "client_session.h"
 #include "metrics.h"
 #include "mpsc_queue.h"
+#include "message.h"
 #include <thread>
 #include <iostream>
 #include <iomanip>
 
 void market_replay(MPSCQueue<Order>&);
-void pnl_thread(SPSCQueue<Trade>&, MPSCQueue<ExecutionReport>& , LatencyStats&);
+void pnl_thread(SPSCQueue<Trade>&,MPSCQueue<Pnlrequest>&,MPSCQueue<ExecutionReport>&, LatencyStats&);
 
 static inline uint64_t now_ns() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -21,7 +22,9 @@ int main() {
     constexpr size_t Order_queue_size = 1<<11;
     constexpr size_t Trade_queue_size = 1<<11;
     constexpr size_t Report_queue_size = 1<<11;
+    constexpr size_t Pnl_queue_size = 1<<11;
     MPSCQueue<Order> order_q(Order_queue_size);
+    MPSCQueue<Pnlrequest> pnl_q(Pnl_queue_size);
     SPSCQueue<Trade> trade_q(Trade_queue_size);
     MPSCQueue<ExecutionReport> report_q(Report_queue_size);
     PerformanceMetrics metrics_;
@@ -30,9 +33,9 @@ int main() {
     LatencyStats metrics_lat;
     uint64_t t1 = now_ns();
     std::thread match(&MatchingEngine::run, &engine);
-    std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(report_q),std::ref(metrics_lat));
+    std::thread pnl(pnl_thread, std::ref(trade_q),std::ref(pnl_q),std::ref(report_q),std::ref(metrics_lat));
     std::thread dispatcherthread(&ReportDispatcher::run,&dispatcher);
-    TCPServer server(8080,order_q,dispatcher);
+    TCPServer server(8080,order_q,dispatcher,pnl_q);
     std::thread serverthread(&TCPServer::start,&server);
 
     std::cout<<"Press ENTER TO SHUTDOWN ....\n";

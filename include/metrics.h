@@ -19,8 +19,11 @@ public:
 
     void record(ExecType type) {
         switch (type) {
-            case ExecType::ACK: ++acks; ++round_turns; break;
-            case ExecType::FILL: ++fills; break;
+            case ExecType::ACK: ++acks; break;
+            case ExecType::FILL: 
+                ++fills;
+                round_turns += fills;
+                break;
             case ExecType::PARTIAL_FILL: ++partial_fills; break;
             case ExecType::CANCELLED: ++cancelled; break;
             case ExecType::REJECT: ++rejects; break;
@@ -45,7 +48,8 @@ public:
     }
 
     void report(uint64_t elapsed_ns) const {
-        const uint64_t rts = round_turns.load(std::memory_order_relaxed);
+        uint64_t rts = round_turns.load(std::memory_order_relaxed);
+        rts = rts/2;
         const double rt_throughput = elapsed_ns > 0
             ? (static_cast<double>(rts) * 1e9) / static_cast<double>(elapsed_ns)
             : 0.0;

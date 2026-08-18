@@ -5,7 +5,7 @@
 #include <deque>
 enum class Side { BUY, SELL };
 enum class OrderType { LIMIT , MARKET , SHUTDOWN};
-enum class RequestType {NEW , CANCEL , MODIFY};
+enum class RequestType {NEW , CANCEL , MODIFY , PNL};
 
 struct Order {
     uint64_t id = 0;
@@ -19,6 +19,11 @@ struct Order {
     uint64_t t_created = 0;
     uint64_t t_emitted = 0;
     uint64_t t_matched = 0;
+};
+
+struct Pnlrequest{
+    int trader_id;
+    std::string symbol;
 };
 
 struct Trade {
