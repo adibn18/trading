@@ -1,0 +1,3 @@
+/home/adib/Projects/trading/build/CMakeFiles/trading.dir
+/home/adib/Projects/trading/build/CMakeFiles/edit_cache.dir
+/home/adib/Projects/trading/build/CMakeFiles/rebuild_cache.dir
