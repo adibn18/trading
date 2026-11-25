@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <string>
-#include <deque>
+
 enum class Side { BUY, SELL };
 enum class OrderType { LIMIT , MARKET , SHUTDOWN};
 enum class RequestType {NEW , CANCEL , MODIFY , PNL};
@@ -37,10 +37,14 @@ struct Trade {
     uint64_t t_emitted;
 };
 
-struct OrderLocation{
-    Side side;
-    std::string symbol;
-    int price;
-    std::deque<Order>::iterator order_it;
+struct OrderNode {
+    Order order;
+    OrderNode* prev = nullptr;
+    OrderNode* next = nullptr;
 };
 
+struct OrderLocation{
+    Side side;
+    int price;
+    OrderNode* node = nullptr;
+};

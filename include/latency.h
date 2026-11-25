@@ -22,4 +22,6 @@ public :
         std::cout << " max=" << to_ns(v.back()) << " ns\n";
         std::cout << "\n----------------------\n";
     }
+    uint64_t t_started;
+    uint64_t t_ended;
 };

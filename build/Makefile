@@ -129,6 +129,19 @@ trading/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/trading.dir/build.make CMakeFiles/trading.dir/build
 .PHONY : trading/fast
 
+#=============================================================================
+# Target rules for targets named testing
+
+# Build rule for target.
+testing: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 testing
+.PHONY : testing
+
+# fast build rule for target.
+testing/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/build
+.PHONY : testing/fast
+
 src/client_session.o: src/client_session.cpp.o
 .PHONY : src/client_session.o
 
@@ -297,6 +310,54 @@ src/tcp_server.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/trading.dir/build.make CMakeFiles/trading.dir/src/tcp_server.cpp.s
 .PHONY : src/tcp_server.cpp.s
 
+tests/tcp_client.o: tests/tcp_client.cpp.o
+.PHONY : tests/tcp_client.o
+
+# target to build an object file
+tests/tcp_client.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/tests/tcp_client.cpp.o
+.PHONY : tests/tcp_client.cpp.o
+
+tests/tcp_client.i: tests/tcp_client.cpp.i
+.PHONY : tests/tcp_client.i
+
+# target to preprocess a source file
+tests/tcp_client.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/tests/tcp_client.cpp.i
+.PHONY : tests/tcp_client.cpp.i
+
+tests/tcp_client.s: tests/tcp_client.cpp.s
+.PHONY : tests/tcp_client.s
+
+# target to generate assembly for a file
+tests/tcp_client.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/tests/tcp_client.cpp.s
+.PHONY : tests/tcp_client.cpp.s
+
+tests/tests.o: tests/tests.cpp.o
+.PHONY : tests/tests.o
+
+# target to build an object file
+tests/tests.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/tests/tests.cpp.o
+.PHONY : tests/tests.cpp.o
+
+tests/tests.i: tests/tests.cpp.i
+.PHONY : tests/tests.i
+
+# target to preprocess a source file
+tests/tests.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/tests/tests.cpp.i
+.PHONY : tests/tests.cpp.i
+
+tests/tests.s: tests/tests.cpp.s
+.PHONY : tests/tests.s
+
+# target to generate assembly for a file
+tests/tests.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/tests/tests.cpp.s
+.PHONY : tests/tests.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -305,6 +366,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... testing"
 	@echo "... trading"
 	@echo "... src/client_session.o"
 	@echo "... src/client_session.i"
@@ -327,6 +389,12 @@ help:
 	@echo "... src/tcp_server.o"
 	@echo "... src/tcp_server.i"
 	@echo "... src/tcp_server.s"
+	@echo "... tests/tcp_client.o"
+	@echo "... tests/tcp_client.i"
+	@echo "... tests/tcp_client.s"
+	@echo "... tests/tests.o"
+	@echo "... tests/tests.i"
+	@echo "... tests/tests.s"
 .PHONY : help
 
 

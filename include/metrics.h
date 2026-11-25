@@ -20,16 +20,17 @@ public:
     void record(ExecType type) {
         switch (type) {
             case ExecType::ACK: ++acks; break;
-            case ExecType::FILL: 
-                ++fills;
-                round_turns += fills;
-                break;
+            case ExecType::FILL: ++fills;break;
             case ExecType::PARTIAL_FILL: ++partial_fills; break;
             case ExecType::CANCELLED: ++cancelled; break;
             case ExecType::REJECT: ++rejects; break;
             case ExecType::MODIFIED: ++modified; break;
             default: break;
         }
+    }
+
+    void record_rt(int qty){
+        round_turns += qty;
     }
 
     MetricsSnapshot snapshot(uint64_t report_q_spins_in, uint64_t report_q_spins_out) const {

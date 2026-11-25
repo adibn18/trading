@@ -64,10 +64,12 @@ CMAKE_BINARY_DIR = /home/adib/Projects/trading/build
 
 # The main recursive "all" target.
 all: CMakeFiles/trading.dir/all
+all: CMakeFiles/testing.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
 codegen: CMakeFiles/trading.dir/codegen
+codegen: CMakeFiles/testing.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -76,6 +78,7 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/trading.dir/clean
+clean: CMakeFiles/testing.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -85,7 +88,7 @@ clean: CMakeFiles/trading.dir/clean
 CMakeFiles/trading.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/trading.dir/build.make CMakeFiles/trading.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/trading.dir/build.make CMakeFiles/trading.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/adib/Projects/trading/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8 "Built target trading"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/adib/Projects/trading/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11 "Built target trading"
 .PHONY : CMakeFiles/trading.dir/all
 
 # Build rule for subdir invocation for target.
@@ -102,13 +105,45 @@ trading: CMakeFiles/trading.dir/rule
 # codegen rule for target.
 CMakeFiles/trading.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/trading.dir/build.make CMakeFiles/trading.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/adib/Projects/trading/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8 "Finished codegen for target trading"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/adib/Projects/trading/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11 "Finished codegen for target trading"
 .PHONY : CMakeFiles/trading.dir/codegen
 
 # clean rule for target.
 CMakeFiles/trading.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/trading.dir/build.make CMakeFiles/trading.dir/clean
 .PHONY : CMakeFiles/trading.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/testing.dir
+
+# All Build rule for target.
+CMakeFiles/testing.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/adib/Projects/trading/build/CMakeFiles --progress-num=1,2,3 "Built target testing"
+.PHONY : CMakeFiles/testing.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/testing.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/adib/Projects/trading/build/CMakeFiles 3
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/testing.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/adib/Projects/trading/build/CMakeFiles 0
+.PHONY : CMakeFiles/testing.dir/rule
+
+# Convenience name for target.
+testing: CMakeFiles/testing.dir/rule
+.PHONY : testing
+
+# codegen rule for target.
+CMakeFiles/testing.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/adib/Projects/trading/build/CMakeFiles --progress-num=1,2,3 "Finished codegen for target testing"
+.PHONY : CMakeFiles/testing.dir/codegen
+
+# clean rule for target.
+CMakeFiles/testing.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/testing.dir/build.make CMakeFiles/testing.dir/clean
+.PHONY : CMakeFiles/testing.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

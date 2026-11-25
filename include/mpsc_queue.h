@@ -54,11 +54,11 @@ public:
 
     size_t capacity() const noexcept { return capacity_; }
 
-    std::atomic<uint64_t> queue_spins_in{0};
-    std::atomic<uint64_t> queue_spins_out{0};
+    alignas(64) std::atomic<uint64_t> queue_spins_in{0};
+    alignas(64) std::atomic<uint64_t> queue_spins_out{0};
 
 private:
-    struct Cell {
+    struct alignas(64) Cell {
         std::atomic<size_t> sequence{0};
         T value{};
     };

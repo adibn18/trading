@@ -23,34 +23,47 @@ void ClientSession::start() {
 }
 
 void ClientSession::readerLoop(){
+    std::string rx_buffer;
     while(running_){
-        char buffer[1024];
+        char buffer[4096];
         boost::system::error_code erc;
-        std::size_t bytes = socket_.read_some(boost::asio::buffer(buffer), erc);
-        if(erc){
-            running_ = false;
-            break;
-        }
-        std::string data(buffer,bytes);
-        Message msg = Protocol::parse(data);
-        if(!registered_){
-            dispatcher_.RegisterClient(trader_id_,&report_q_);
-            registered_ = true;
-        }
-        if(msg.type == MessageType::PNL){
-            Pnlrequest request;
-            request.trader_id = trader_id_;
-            request.symbol = msg.symbol;
-            while(!pnl_q_.push(request)){
-                ++pnl_q_.queue_spins_in;
+        std::size_t n = socket_.read_some(
+            boost::asio::buffer(buffer), erc
+        );
+        if (erc) break;
+        rx_buffer.append(buffer, n);
+        std::size_t pos;
+        while ((pos = rx_buffer.find('\n')) != std::string::npos) {
+
+            std::string message =
+                rx_buffer.substr(0, pos);
+
+            rx_buffer.erase(0, pos + 1);
+
+            if (message.empty())
+                continue;
+
+            Message msg = Protocol::parse(message);
+            if(!registered_){
+                dispatcher_.RegisterClient(trader_id_,&report_q_);
+                registered_ = true;
+            }
+            if(msg.type == MessageType::PNL){
+                Pnlrequest request;
+                request.trader_id = trader_id_;
+                request.symbol = msg.symbol;
+                while(!pnl_q_.push(request)){
+                    ++pnl_q_.queue_spins_in;
+                    std::this_thread::yield();
+                }
+                continue;
+            }
+            Order order = MessageConverter::toOrder(msg);
+            order.trader_id = trader_id_;
+            while (!order_q_.push(order)) {
+                ++order_q_.queue_spins_in;
                 std::this_thread::yield();
             }
-            continue;
-        }
-        Order order = MessageConverter::toOrder(msg);
-        order.trader_id = trader_id_;
-        while (!order_q_.push(order)) {
-            ++order_q_.queue_spins_in;
         }
     }
 }
@@ -61,6 +74,7 @@ void ClientSession::writerLoop(){
         ExecutionReport r;
         while(!report_q_.pop(r)){
             ++report_q_.queue_spins_out;
+            std::this_thread::yield();
         }
         std::string response;
         switch (r.type){

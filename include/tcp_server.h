@@ -5,6 +5,9 @@
 #include "report.h"
 #include "report_dispatcher.h"
 #include <atomic>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
 
 class TCPServer {
     public :

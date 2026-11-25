@@ -17,10 +17,19 @@ add_executable(trading
     src/client_session.cpp
     src/protocol.cpp
     src/message.cpp
-
 )
 
 target_link_libraries(trading
+    PRIVATE
+    Threads::Threads
+)
+
+add_executable(testing
+    tests/tcp_client.cpp
+    tests/tests.cpp
+)
+
+target_link_libraries(testing
     PRIVATE
     Threads::Threads
 )

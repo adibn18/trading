@@ -12,7 +12,7 @@ struct PnL {
     int64_t pos = 0;
 };
 
-void pnl_thread(SPSCQueue<Trade>& tq,MPSCQueue<Pnlrequest> &pnl_q,MPSCQueue<ExecutionReport> &report_q,LatencyStats& metrics_lat) {
+void pnl_thread(SPSCQueue<Trade>& tq,MPSCQueue<Pnlrequest> &pnl_q,MPSCQueue<ExecutionReport> &report_q) {
     std::unordered_map<int,std::unordered_map<std::string, PnL>> pnl;
     Trade t;
     Pnlrequest req;
@@ -31,10 +31,6 @@ void pnl_thread(SPSCQueue<Trade>& tq,MPSCQueue<Pnlrequest> &pnl_q,MPSCQueue<Exec
             buyer.pos += t.qty;
             seller.cash += int64_t(t.price) * t.qty;
             seller.pos -= t.qty;
-            t.t_emitted = now_tsc();
-            if(++process > Warmup){
-                metrics_lat.add(t.t_emitted - t.t_created);
-            }
         }
         if(pnl_q.pop(req)){
             work = true;

@@ -45,6 +45,7 @@ ReportDispatcher::ReportDispatcher(MPSCQueue<ExecutionReport> &report_q,Performa
 
 void ReportDispatcher::dispatch(ExecutionReport& r) {
     metrics_.record(r.type);
+    metrics_.record_rt(r.fillqty);
     r.stats = metrics_.snapshot(report_q_.queue_spins_in, report_q_.queue_spins_out);
     SPSCQueue<ExecutionReport>* queue = nullptr;
     {

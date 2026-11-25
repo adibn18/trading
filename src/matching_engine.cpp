@@ -1,15 +1,117 @@
 #include <matching_engine.h>
 #include <report.h>
 #include <iostream>
+#include <thread>
+#include <utility>
 #include <rdtsc.h>
+
+OrderBook::OrderBook() = default;
+
+OrderBook::~OrderBook() {
+    clear();
+}
+
+OrderBook::OrderBook(OrderBook&& other) noexcept
+    : best_bid_(other.best_bid_),
+      best_ask_(other.best_ask_),
+      order_index_(std::move(other.order_index_)) {
+    for (int p = MIN_PRICE; p <= MAX_PRICE; ++p) {
+        bids_[p] = other.bids_[p];
+        asks_[p] = other.asks_[p];
+        other.bids_[p] = {};
+        other.asks_[p] = {};
+    }
+    other.best_bid_ = 0;
+    other.best_ask_ = MAX_PRICE + 1;
+}
+
+OrderBook& OrderBook::operator=(OrderBook&& other) noexcept {
+    if (this == &other) return *this;
+    clear();
+    best_bid_ = other.best_bid_;
+    best_ask_ = other.best_ask_;
+    order_index_ = std::move(other.order_index_);
+    for (int p = MIN_PRICE; p <= MAX_PRICE; ++p) {
+        bids_[p] = other.bids_[p];
+        asks_[p] = other.asks_[p];
+        other.bids_[p] = {};
+        other.asks_[p] = {};
+    }
+    other.best_bid_ = 0;
+    other.best_ask_ = MAX_PRICE + 1;
+    return *this;
+}
+
+void OrderBook::clear() {
+    for (int p = MIN_PRICE; p <= MAX_PRICE; ++p) {
+        for (OrderNode* n = bids_[p].head; n; ) {
+            OrderNode* next = n->next;
+            delete n;
+            n = next;
+        }
+        bids_[p] = {};
+        for (OrderNode* n = asks_[p].head; n; ) {
+            OrderNode* next = n->next;
+            delete n;
+            n = next;
+        }
+        asks_[p] = {};
+    }
+    best_bid_ = 0;
+    best_ask_ = MAX_PRICE + 1;
+    order_index_.clear();
+}
+
+void OrderBook::push_back(PriceLevel& level, OrderNode* node) {
+    node->prev = level.tail;
+    node->next = nullptr;
+    if (level.tail) level.tail->next = node;
+    else level.head = node;
+    level.tail = node;
+}
+
+void OrderBook::unlink(PriceLevel& level, OrderNode* node) {
+    if (node->prev) node->prev->next = node->next;
+    else level.head = node->next;
+    if (node->next) node->next->prev = node->prev;
+    else level.tail = node->prev;
+    node->prev = nullptr;
+    node->next = nullptr;
+}
+
+void OrderBook::advance_best_bid() {
+    while (best_bid_ >= MIN_PRICE && !bids_[best_bid_].head) {
+        --best_bid_;
+    }
+    if (best_bid_ < MIN_PRICE) best_bid_ = 0;
+}
+
+void OrderBook::advance_best_ask() {
+    while (best_ask_ <= MAX_PRICE && !asks_[best_ask_].head) {
+        ++best_ask_;
+    }
+}
+
+void OrderBook::rest_order(Order& o, Side side) {
+    if (!valid_price(o.price) || o.qty <= 0) return;
+    auto* node = new OrderNode{o, nullptr, nullptr};
+    if (side == Side::BUY) {
+        push_back(bids_[o.price], node);
+        if (o.price > best_bid_) best_bid_ = o.price;
+    } else {
+        push_back(asks_[o.price], node);
+        if (o.price < best_ask_) best_ask_ = o.price;
+    }
+    order_index_[o.id] = {side, o.price, node};
+}
 
 void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPSCQueue<ExecutionReport>& report_q_){
     if (o.side == Side::BUY) {
-        auto& book = asks_;
-        while (o.qty > 0 && !book.empty()) {
-            auto it = book.begin();
-            if (o.type == OrderType::LIMIT && it->first > o.price) break;
-            auto& resting = it->second.front();
+        while (o.qty > 0 && best_ask_ <= MAX_PRICE) {
+            if (o.type == OrderType::LIMIT && best_ask_ > o.price) break;
+            PriceLevel& level = asks_[best_ask_];
+            OrderNode* node = level.head;
+            Order& resting = node->order;
             int traded = std::min(o.qty, resting.qty);
             o.qty -= traded;
             resting.qty -= traded;
@@ -23,6 +125,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPS
             };
             while (!trade_q_.push(t)){
                 ++trade_q_.queue_spins_in;
+                std::this_thread::yield();
             }
             ExecutionReport r1;
             r1.trader_id = resting.trader_id;
@@ -39,6 +142,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPS
             }
             while (!report_q_.push(r1)){
                 ++report_q_.queue_spins_in;
+                std::this_thread::yield();
             }
             ExecutionReport r2;
             if(o.qty > 0) r2.type = ExecType::PARTIAL_FILL;
@@ -51,29 +155,26 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPS
             r2.symbol = o.symbol;
             while (!report_q_.push(r2)){
                 ++report_q_.queue_spins_in;
+                std::this_thread::yield();
             }
             if (resting.qty == 0){
-                it->second.pop_front();
-                if (it->second.empty()) book.erase(it);
+                const uint64_t filled_id = resting.id;
+                unlink(level, node);
+                order_index_.erase(filled_id);
+                delete node;
+                if (!level.head) advance_best_ask();
             }
         }
         if (o.qty > 0 && o.type == OrderType::LIMIT){
-            bids_[o.price].push_back(o);
-            auto it = std::prev(bids_[o.price].end());
-            order_index_[o.id] = {
-                Side::BUY,
-                o.symbol,
-                o.price,
-                it
-            };
+            rest_order(o, Side::BUY);
         }
     }
     else {
-        auto& book = bids_;
-        while (o.qty > 0 && !book.empty()) {
-            auto it = book.begin();
-            if (o.type == OrderType::LIMIT && it->first < o.price) break;
-            auto& resting = it->second.front();
+        while (o.qty > 0 && best_bid_ >= MIN_PRICE) {
+            if (o.type == OrderType::LIMIT && best_bid_ < o.price) break;
+            PriceLevel& level = bids_[best_bid_];
+            OrderNode* node = level.head;
+            Order& resting = node->order;
             int traded = std::min(o.qty, resting.qty);
             o.qty -= traded;
             resting.qty -= traded;
@@ -87,6 +188,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPS
             };
             while (!trade_q_.push(t)){
                 ++trade_q_.queue_spins_in;
+                std::this_thread::yield();
             }
             ExecutionReport r1;
             r1.trader_id = resting.trader_id;
@@ -103,6 +205,7 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPS
             }
             while (!report_q_.push(r1)){
                 ++report_q_.queue_spins_in;
+                std::this_thread::yield();
             }
             ExecutionReport r2;
             if(o.qty > 0) r2.type = ExecType::PARTIAL_FILL;
@@ -115,21 +218,18 @@ void OrderBook::match(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MPS
             r2.symbol = o.symbol;
             while (!report_q_.push(r2)){
                 ++report_q_.queue_spins_in;
+                std::this_thread::yield();
             }
             if (resting.qty == 0){
-                it->second.pop_front();
-                if (it->second.empty()) book.erase(it);
+                const uint64_t filled_id = resting.id;
+                unlink(level, node);
+                order_index_.erase(filled_id);
+                delete node;
+                if (!level.head) advance_best_bid();
             }
         }
         if (o.qty > 0 && o.type == OrderType::LIMIT){
-            asks_[o.price].push_back(o);
-            auto it = std::prev(asks_[o.price].end());
-            order_index_[o.id] = {
-                Side::SELL,
-                o.symbol,
-                o.price,
-                it
-            };
+            rest_order(o, Side::SELL);
         }
     }
 }
@@ -138,19 +238,22 @@ bool OrderBook::cancel(uint64_t id,MPSCQueue<ExecutionReport>& report_q_){
     auto idx = order_index_.find(id);
     if(idx == order_index_.end()) return false;
     auto &loc = idx->second;
-    const Order cancelled = *loc.order_it;
-    if(loc.side == Side::BUY){
-        auto book_it = bids_.find(loc.price);
-        book_it->second.erase(loc.order_it);
-        if(book_it->second.empty()) bids_.erase(book_it);
-        order_index_.erase(idx);
+    OrderNode* node = loc.node;
+    if (!node) return false;
+    const Order cancelled = node->order;
+
+    PriceLevel& level = (loc.side == Side::BUY) ? bids_[loc.price] : asks_[loc.price];
+    unlink(level, node);
+    if (!level.head) {
+        if (loc.side == Side::BUY) {
+            if (loc.price == best_bid_) advance_best_bid();
+        } else {
+            if (loc.price == best_ask_) advance_best_ask();
+        }
     }
-    else{
-        auto book_it = asks_.find(loc.price);
-        book_it->second.erase(loc.order_it);
-        if(book_it->second.empty()) asks_.erase(book_it);
-        order_index_.erase(idx);
-    }
+    order_index_.erase(idx);
+    delete node;
+
     ExecutionReport r;
     r.type = ExecType::CANCELLED;
     r.id = id;
@@ -159,6 +262,7 @@ bool OrderBook::cancel(uint64_t id,MPSCQueue<ExecutionReport>& report_q_){
     r.remqty = cancelled.qty;
     while(!report_q_.push(r)){
         ++report_q_.queue_spins_in;
+        std::this_thread::yield();
     }
     return true;
 }
@@ -169,7 +273,9 @@ bool OrderBook::modify(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MP
     if(o.qty <= 0) return false;
 
     auto &loc = idx->second;
-    Order& resting = *loc.order_it;
+    OrderNode* node = loc.node;
+    if (!node) return false;
+    Order& resting = node->order;
     const int old_price = resting.price;
 
     auto push_modified = [&](const Order& updated){
@@ -182,6 +288,7 @@ bool OrderBook::modify(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MP
         r.remqty = updated.qty;
         while(!report_q_.push(r)){
             ++report_q_.queue_spins_in;
+            std::this_thread::yield();
         }
     };
 
@@ -191,21 +298,24 @@ bool OrderBook::modify(Order& o,uint64_t& trade_id,SPSCQueue<Trade>& trade_q_,MP
         return true;
     }
 
+    if (!valid_price(o.price)) return false;
+
     Order updated = resting;
     updated.price = o.price;
     updated.qty = o.qty;
+    const Side side = loc.side;
 
-    if(loc.side == Side::BUY){
-        auto book_it = bids_.find(loc.price);
-        book_it->second.erase(loc.order_it);
-        if(book_it->second.empty()) bids_.erase(book_it);
-    }
-    else{
-        auto book_it = asks_.find(loc.price);
-        book_it->second.erase(loc.order_it);
-        if(book_it->second.empty()) asks_.erase(book_it);
+    PriceLevel& level = (side == Side::BUY) ? bids_[loc.price] : asks_[loc.price];
+    unlink(level, node);
+    if (!level.head) {
+        if (side == Side::BUY) {
+            if (loc.price == best_bid_) advance_best_bid();
+        } else {
+            if (loc.price == best_ask_) advance_best_ask();
+        }
     }
     order_index_.erase(idx);
+    delete node;
 
     match(updated,trade_id,trade_q_,report_q_);
     push_modified(updated);
@@ -216,10 +326,12 @@ void MatchingEngine::run(){
     Order o;
     uint64_t trade_id = 0;
     uint64_t process = 0;
-    constexpr uint64_t Warmup = 0;
+    constexpr uint64_t Warmup = 1000;
+    ingress_lat.t_started = now_tsc();
     while (true) {
         if (!order_q_.pop(o)){
             ++order_q_.queue_spins_out;
+            std::this_thread::yield();
             continue;
         }
         if (o.type == OrderType::SHUTDOWN) break;
@@ -231,6 +343,7 @@ void MatchingEngine::run(){
         report.trader_id = o.trader_id;
         while(!(report_q_.push(report))){
             ++report_q_.queue_spins_in;
+            std::this_thread::yield();
         }
         if(o.rtype == RequestType::CANCEL){
             if(!books_[o.symbol].cancel(o.id,report_q_)){
@@ -241,6 +354,7 @@ void MatchingEngine::run(){
                 reject.trader_id = o.trader_id;
                 while(!report_q_.push(reject)){
                     ++report_q_.queue_spins_in;
+                    std::this_thread::yield();
                 }
             }
             continue;
@@ -254,6 +368,7 @@ void MatchingEngine::run(){
                 reject.trader_id = o.trader_id;
                 while(!report_q_.push(reject)){
                     ++report_q_.queue_spins_in;
+                    std::this_thread::yield();
                 }
             }
             continue;
@@ -270,10 +385,13 @@ void MatchingEngine::run(){
     shutdown.trade_buyer_id = -1;
     while (!trade_q_.push(shutdown)){
         ++trade_q_.queue_spins_in;
+        std::this_thread::yield();
     }
     ExecutionReport shutdown_r{};
     shutdown_r.trader_id = -1;
     while (!report_q_.push(shutdown_r)){
         ++report_q_.queue_spins_in;
+        std::this_thread::yield();
     }
+    ingress_lat.t_ended = now_tsc();
 }
